@@ -1,0 +1,269 @@
+{% extends "base.html" %}
+
+{% block title %}崩溃分析结果 - iOS崩溃日志符号化工具{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <!-- 返回按钮 -->
+        <div class="mb-4">
+            <a href="{{ url_for('index') }}" class="btn btn-outline-primary">
+                <i class="fas fa-arrow-left me-2"></i>返回首页
+            </a>
+            <a href="{{ url_for('download_result', result_id=result_id) }}" class="btn btn-outline-success ms-2">
+                <i class="fas fa-download me-2"></i>下载分析结果
+            </a>
+        </div>
+
+        <!-- 处理状态提示 -->
+        {% if crash_info.threads %}
+        <div class="alert alert-success">
+            <i class="fas fa-check-circle me-2"></i>
+            <strong>符号化成功！</strong>崩溃日志已成功解析，以下是详细分析结果。
+        </div>
+        {% else %}
+        <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            <strong>部分符号化！</strong>无法完全符号化此崩溃日志，但您仍可以查看原始内容。
+            <details class="mt-2">
+                <summary>可能的原因</summary>
+                <ul class="mt-2 mb-0">
+                    <li>dSYM文件与崩溃应用版本不匹配</li>
+                    <li>IPS文件格式较新，symbolicatecrash工具版本较老</li>
+                    <li>文件损坏或格式不正确</li>
+                </ul>
+            </details>
+        </div>
+        {% endif %}
+
+        <!-- 崩溃概览 -->
+        <div class="crash-info-card">
+            <div class="row">
+                <div class="col-md-6">
+                    <h4><i class="fas fa-mobile-alt me-2"></i>应用信息</h4>
+                    <p class="mb-2"><strong>应用名称：</strong>{{ crash_info.app_name or '未知' }}</p>
+                    <p class="mb-2"><strong>应用版本：</strong>{{ crash_info.app_version or '未知' }}</p>
+                    <p class="mb-0"><strong>崩溃时间：</strong>{{ crash_info.crash_time or '未知' }}</p>
+                </div>
+                <div class="col-md-6">
+                    <h4><i class="fas fa-exclamation-triangle me-2"></i>崩溃信息</h4>
+                    <p class="mb-2"><strong>异常类型：</strong>{{ crash_info.exception_type or '未知' }}</p>
+                    <p class="mb-2"><strong>异常代码：</strong>{{ crash_info.exception_codes or '未知' }}</p>
+                    <p class="mb-0"><strong>崩溃线程：</strong>{{ crash_info.crashed_thread or '未知' }}</p>
+                </div>
+            </div>
+            {% if crash_info.device_model or crash_info.os_version %}
+            <hr class="my-3" style="border-color: rgba(255,255,255,0.3);">
+            <div class="row">
+                <div class="col-md-6">
+                    <p class="mb-0"><strong>设备型号：</strong>{{ crash_info.device_model or '未知' }}</p>
+                </div>
+                <div class="col-md-6">
+                    <p class="mb-0"><strong>系统版本：</strong>{{ crash_info.os_version or '未知' }}</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- 线程信息 -->
+        {% if crash_info.threads %}
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-list me-2"></i>线程堆栈信息</span>
+                <button class="btn btn-sm btn-outline-primary" onclick="toggleAllThreads()">
+                    <i class="fas fa-expand-alt me-1"></i>展开/收起全部
+                </button>
+            </div>
+            <div class="card-body">
+                {% for thread in crash_info.threads %}
+                <div class="thread-card card {{ 'crashed' if thread.crashed else '' }}">
+                    <div class="card-header" style="cursor: pointer;" onclick="toggleThread({{ loop.index0 }})">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span>
+                                {% if thread.crashed %}
+                                    <i class="fas fa-exclamation-circle text-danger me-2"></i>
+                                    <strong>Thread {{ thread.id }} (崩溃线程)</strong>
+                                {% else %}
+                                    <i class="fas fa-circle text-primary me-2"></i>
+                                    Thread {{ thread.id }}
+                                {% endif %}
+                                {{ thread.name }}
+                            </span>
+                            <i class="fas fa-chevron-down thread-toggle" id="toggle-{{ loop.index0 }}"></i>
+                        </div>
+                    </div>
+                    <div class="card-body thread-content" id="thread-{{ loop.index0 }}" 
+                         style="{{ 'display: block;' if thread.crashed else 'display: none;' }}">
+                        {% if thread.frames %}
+                            {% for frame in thread.frames %}
+                            <div class="stack-frame">{{ frame }}</div>
+                            {% endfor %}
+                        {% else %}
+                            <p class="text-muted mb-0">该线程没有堆栈信息</p>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- 二进制镜像信息 -->
+        {% if crash_info.binary_images %}
+        <div class="card mt-4">
+            <div class="card-header">
+                <span><i class="fas fa-cube me-2"></i>二进制镜像信息</span>
+                <button class="btn btn-sm btn-outline-secondary ms-2" onclick="toggleBinaryImages()">
+                    <i class="fas fa-eye me-1"></i>显示/隐藏
+                </button>
+            </div>
+            <div class="card-body" id="binary-images" style="display: none;">
+                <div style="max-height: 400px; overflow-y: auto;">
+                    {% for image in crash_info.binary_images %}
+                    <div class="stack-frame">{{ image }}</div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- 原始符号化日志 -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <span><i class="fas fa-file-code me-2"></i>完整符号化日志</span>
+                <button class="btn btn-sm btn-outline-secondary ms-2" onclick="toggleRawLog()">
+                    <i class="fas fa-eye me-1"></i>显示/隐藏
+                </button>
+                <button class="btn btn-sm btn-outline-info ms-2" onclick="copyToClipboard()">
+                    <i class="fas fa-copy me-1"></i>复制
+                </button>
+            </div>
+            <div class="card-body" id="raw-log" style="display: none;">
+                <pre class="code-block" id="symbolicated-log">{{ symbolicated_log }}</pre>
+            </div>
+        </div>
+
+        <!-- 分析建议 -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <i class="fas fa-lightbulb me-2"></i>
+                分析建议
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-search me-2"></i>调试步骤：</h6>
+                        <ul class="list-unstyled">
+                            <li><i class="fas fa-chevron-right me-2 text-primary"></i>重点关注崩溃线程的堆栈信息</li>
+                            <li><i class="fas fa-chevron-right me-2 text-primary"></i>查看异常类型和错误代码</li>
+                            <li><i class="fas fa-chevron-right me-2 text-primary"></i>分析调用链路找出问题根源</li>
+                            <li><i class="fas fa-chevron-right me-2 text-primary"></i>检查内存管理和线程安全</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-tools me-2"></i>常见问题类型：</h6>
+                        <ul class="list-unstyled">
+                            <li><i class="fas fa-chevron-right me-2 text-secondary"></i>EXC_BAD_ACCESS: 内存访问错误</li>
+                            <li><i class="fas fa-chevron-right me-2 text-secondary"></i>EXC_CRASH: 主动崩溃或断言失败</li>
+                            <li><i class="fas fa-chevron-right me-2 text-secondary"></i>SIGABRT: 异常终止</li>
+                            <li><i class="fas fa-chevron-right me-2 text-secondary"></i>SIGKILL: 系统强制终止</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // 切换线程显示
+    function toggleThread(index) {
+        const content = document.getElementById(`thread-${index}`);
+        const toggle = document.getElementById(`toggle-${index}`);
+        
+        if (content.style.display === 'none') {
+            content.style.display = 'block';
+            toggle.classList.remove('fa-chevron-down');
+            toggle.classList.add('fa-chevron-up');
+        } else {
+            content.style.display = 'none';
+            toggle.classList.remove('fa-chevron-up');
+            toggle.classList.add('fa-chevron-down');
+        }
+    }
+
+    // 展开/收起所有线程
+    function toggleAllThreads() {
+        const contents = document.querySelectorAll('.thread-content');
+        const toggles = document.querySelectorAll('.thread-toggle');
+        const isAnyVisible = Array.from(contents).some(content => content.style.display === 'block');
+        
+        contents.forEach((content, index) => {
+            if (isAnyVisible) {
+                content.style.display = 'none';
+                toggles[index].classList.remove('fa-chevron-up');
+                toggles[index].classList.add('fa-chevron-down');
+            } else {
+                content.style.display = 'block';
+                toggles[index].classList.remove('fa-chevron-down');
+                toggles[index].classList.add('fa-chevron-up');
+            }
+        });
+    }
+
+    // 切换二进制镜像显示
+    function toggleBinaryImages() {
+        const content = document.getElementById('binary-images');
+        content.style.display = content.style.display === 'none' ? 'block' : 'none';
+    }
+
+    // 切换原始日志显示
+    function toggleRawLog() {
+        const content = document.getElementById('raw-log');
+        content.style.display = content.style.display === 'none' ? 'block' : 'none';
+    }
+
+    // 复制到剪贴板
+    function copyToClipboard() {
+        const logContent = document.getElementById('symbolicated-log');
+        const textArea = document.createElement('textarea');
+        textArea.value = logContent.textContent;
+        document.body.appendChild(textArea);
+        textArea.select();
+        
+        try {
+            document.execCommand('copy');
+            // 显示成功提示
+            const btn = event.target.closest('button');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-check me-1"></i>已复制';
+            btn.classList.remove('btn-outline-info');
+            btn.classList.add('btn-success');
+            
+            setTimeout(() => {
+                btn.innerHTML = originalText;
+                btn.classList.remove('btn-success');
+                btn.classList.add('btn-outline-info');
+            }, 2000);
+        } catch (err) {
+            console.error('复制失败:', err);
+        }
+        
+        document.body.removeChild(textArea);
+    }
+
+    // 页面加载时默认展开崩溃线程
+    document.addEventListener('DOMContentLoaded', function() {
+        // 高亮显示崩溃相关的关键词
+        const stackFrames = document.querySelectorAll('.stack-frame');
+        stackFrames.forEach(frame => {
+            let content = frame.textContent;
+            // 高亮显示应用名称和关键方法
+            content = content.replace(/(\w+\.\w+)/g, '<span class="text-primary">$1</span>');
+            frame.innerHTML = content;
+        });
+    });
+</script>
+{% endblock %} 

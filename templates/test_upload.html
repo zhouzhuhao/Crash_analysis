@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文件上传测试</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        .upload-area { 
+            border: 2px dashed #ccc; 
+            padding: 20px; 
+            margin: 20px 0; 
+            text-align: center;
+            cursor: pointer;
+        }
+        .upload-area:hover { border-color: #007AFF; background: #f0f8ff; }
+        .file-info { margin: 10px 0; padding: 10px; background: #f5f5f5; }
+        .submit-btn { 
+            background: #007AFF; 
+            color: white; 
+            padding: 15px 30px; 
+            border: none; 
+            border-radius: 5px; 
+            font-size: 16px;
+            cursor: pointer;
+        }
+        .submit-btn:hover { background: #0056b3; }
+        .submit-btn:disabled { background: #ccc; cursor: not-allowed; }
+        .loading { display: none; color: #007AFF; }
+        .debug { background: #f8f9fa; padding: 15px; margin: 20px 0; border-left: 4px solid #007AFF; }
+    </style>
+</head>
+<body>
+    <h1>🧪 文件上传功能测试</h1>
+    
+    <div class="debug">
+        <h3>调试信息</h3>
+        <div id="debug-info">页面已加载，等待文件选择...</div>
+    </div>
+
+    <form id="upload-form" method="POST" action="/upload" enctype="multipart/form-data">
+        <div>
+            <h3>📄 选择IPS文件</h3>
+            <div class="upload-area" onclick="document.getElementById('ips_file').click()">
+                <input type="file" id="ips_file" name="ips_file" accept=".ips,.crash" style="display: none;" required>
+                <p>点击选择IPS文件 (.ips, .crash)</p>
+            </div>
+            <div id="ips-info" class="file-info" style="display: none;"></div>
+        </div>
+
+        <div>
+            <h3>📦 选择dSYM文件</h3>
+            <div class="upload-area" onclick="document.getElementById('dsym_files').click()">
+                <input type="file" id="dsym_files" name="dsym_files" accept=".dsym,.zip" multiple style="display: none;" required>
+                <p>点击选择dSYM文件 (.dSYM, .zip)，可多选</p>
+            </div>
+            <div id="dsym-info" class="file-info" style="display: none;"></div>
+        </div>
+
+        <div style="margin-top: 30px;">
+            <button type="submit" id="submit-btn" class="submit-btn">🚀 开始分析</button>
+            <div id="loading" class="loading">
+                <p>⏳ 正在处理文件，请稍候...</p>
+            </div>
+        </div>
+    </form>
+
+    <script>
+        const debugInfo = document.getElementById('debug-info');
+        const form = document.getElementById('upload-form');
+        const submitBtn = document.getElementById('submit-btn');
+        const loading = document.getElementById('loading');
+        const ipsFile = document.getElementById('ips_file');
+        const dsymFiles = document.getElementById('dsym_files');
+        const ipsInfo = document.getElementById('ips-info');
+        const dsymInfo = document.getElementById('dsym-info');
+
+        function updateDebug(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            debugInfo.innerHTML += `<br>[${timestamp}] ${message}`;
+            console.log(`[${timestamp}] ${message}`);
+        }
+
+        ipsFile.addEventListener('change', function(e) {
+            if (e.target.files.length > 0) {
+                const file = e.target.files[0];
+                ipsInfo.innerHTML = `✅ 已选择: ${file.name} (${(file.size/1024).toFixed(1)}KB)`;
+                ipsInfo.style.display = 'block';
+                updateDebug(`IPS文件已选择: ${file.name}`);
+            }
+        });
+
+        dsymFiles.addEventListener('change', function(e) {
+            if (e.target.files.length > 0) {
+                const files = Array.from(e.target.files);
+                const fileList = files.map(f => `${f.name} (${(f.size/1024).toFixed(1)}KB)`).join('<br>');
+                dsymInfo.innerHTML = `✅ 已选择 ${files.length} 个文件:<br>${fileList}`;
+                dsymInfo.style.display = 'block';
+                updateDebug(`dSYM文件已选择: ${files.length}个文件`);
+            }
+        });
+
+        form.addEventListener('submit', function(e) {
+            updateDebug('表单提交开始...');
+            
+            if (!ipsFile.files.length) {
+                e.preventDefault();
+                alert('请选择IPS文件！');
+                updateDebug('❌ 缺少IPS文件');
+                return;
+            }
+
+            if (!dsymFiles.files.length) {
+                e.preventDefault();
+                alert('请选择dSYM文件！');
+                updateDebug('❌ 缺少dSYM文件');
+                return;
+            }
+
+            // 显示加载状态
+            submitBtn.disabled = true;
+            submitBtn.textContent = '⏳ 分析中...';
+            loading.style.display = 'block';
+            
+            updateDebug('✅ 文件验证通过，开始上传和分析...');
+        });
+
+        updateDebug('页面初始化完成');
+    </script>
+</body>
+</html> 

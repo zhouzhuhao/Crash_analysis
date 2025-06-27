@@ -1,0 +1,359 @@
+{% extends "base.html" %}
+
+{% block title %}iOS崩溃日志符号化工具 - 主页{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8 mx-auto">
+        <!-- 主标题 -->
+        <div class="text-center mb-5">
+            <h1 class="display-4 fw-bold mb-3">
+                <i class="fas fa-bug text-primary me-3"></i>
+                iOS崩溃日志符号化工具
+            </h1>
+            <p class="lead text-muted">
+                基于Xcode的symbolicatecrash工具，快速分析iOS应用崩溃日志
+            </p>
+        </div>
+
+        <!-- 功能特性 -->
+        <div class="row mb-5">
+            <div class="col-md-4 text-center mb-4">
+                <div class="feature-icon">
+                    <i class="fas fa-upload"></i>
+                </div>
+                <h5>简单上传</h5>
+                <p class="text-muted">支持拖拽上传IPS和dSYM文件，操作简单便捷</p>
+            </div>
+            <div class="col-md-4 text-center mb-4">
+                <div class="feature-icon">
+                    <i class="fas fa-cogs"></i>
+                </div>
+                <h5>自动符号化</h5>
+                <p class="text-muted">自动调用symbolicatecrash工具进行符号化处理</p>
+            </div>
+            <div class="col-md-4 text-center mb-4">
+                <div class="feature-icon">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+                <h5>可视化分析</h5>
+                <p class="text-muted">清晰展示崩溃信息、堆栈跟踪和线程状态</p>
+            </div>
+        </div>
+
+        <!-- 文件上传表单 -->
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-cloud-upload-alt me-2"></i>
+                上传崩溃文件
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('upload_files') }}" enctype="multipart/form-data">
+                    <!-- IPS文件上传 -->
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold">
+                            <i class="fas fa-file-alt me-2"></i>
+                            IPS崩溃文件 <span class="text-danger">*</span>
+                        </label>
+                        <div class="upload-area" onclick="document.getElementById('ips_file').click()">
+                            <input type="file" id="ips_file" name="ips_file" accept=".ips,.crash" class="d-none" required>
+                            <div class="upload-content">
+                                <i class="fas fa-file-upload fa-3x text-primary mb-3"></i>
+                                <h5>选择或拖拽IPS文件</h5>
+                                <p class="text-muted mb-0">支持 .ips 和 .crash 格式</p>
+                            </div>
+                        </div>
+                        <div class="form-text">
+                            <i class="fas fa-info-circle me-1"></i>
+                            IPS文件通常可以从Xcode Organizer、设备设置或App Store Connect获取
+                        </div>
+                    </div>
+
+                    <!-- dSYM文件上传 -->
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold">
+                            <i class="fas fa-archive me-2"></i>
+                            dSYM符号文件 <span class="text-danger">*</span>
+                        </label>
+                        <div class="upload-area" onclick="document.getElementById('dsym_files').click()">
+                            <input type="file" id="dsym_files" name="dsym_files" accept=".dsym,.zip" multiple class="d-none" required>
+                            <div class="upload-content">
+                                <i class="fas fa-archive fa-3x text-secondary mb-3"></i>
+                                <h5>选择或拖拽dSYM文件</h5>
+                                <p class="text-muted mb-0">支持 .dSYM 文件夹和 .zip 压缩包，可多选</p>
+                            </div>
+                        </div>
+                        <div class="form-text">
+                            <i class="fas fa-info-circle me-1"></i>
+                            dSYM文件可以从Xcode Archive、App Store Connect或构建服务器获取
+                        </div>
+                    </div>
+
+                    <!-- 提交按钮 -->
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="fas fa-play me-2"></i>
+                            开始分析崩溃日志
+                        </button>
+                    </div>
+                </form>
+
+                <!-- 加载动画 -->
+                <div class="loading-spinner">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">处理中...</span>
+                    </div>
+                    <p class="mt-3 text-muted">正在符号化崩溃日志，请稍候...</p>
+                    <div class="progress">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                             role="progressbar" style="width: 100%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 使用说明 -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <i class="fas fa-question-circle me-2"></i>
+                使用说明
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-file-alt me-2"></i>IPS文件获取方式：</h6>
+                        <ul class="list-unstyled">
+                            <li><i class="fas fa-chevron-right me-2 text-primary"></i>Xcode Organizer → Crashes</li>
+                            <li><i class="fas fa-chevron-right me-2 text-primary"></i>设备设置 → 隐私与安全 → 分析与改进</li>
+                            <li><i class="fas fa-chevron-right me-2 text-primary"></i>App Store Connect → 崩溃报告</li>
+                            <li><i class="fas fa-chevron-right me-2 text-primary"></i>TestFlight → 崩溃日志</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-archive me-2"></i>dSYM文件获取方式：</h6>
+                        <ul class="list-unstyled">
+                            <li><i class="fas fa-chevron-right me-2 text-secondary"></i>Xcode Archive → Show in Finder</li>
+                            <li><i class="fas fa-chevron-right me-2 text-secondary"></i>App Store Connect → 构建版本</li>
+                            <li><i class="fas fa-chevron-right me-2 text-secondary"></i>CI/CD构建产物</li>
+                            <li><i class="fas fa-chevron-right me-2 text-secondary"></i>本地构建目录</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="alert alert-info mt-3">
+                    <i class="fas fa-lightbulb me-2"></i>
+                    <strong>提示：</strong>确保dSYM文件与崩溃的应用版本完全匹配，否则符号化可能失败或不准确。
+                </div>
+            </div>
+        </div>
+
+        <!-- API文档 -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <i class="fas fa-code me-2"></i>
+                API接口
+            </div>
+            <div class="card-body">
+                <p>本工具还提供RESTful API接口，方便集成到自动化流程中：</p>
+                <div class="code-block">
+<pre><code>POST /api/analyze
+Content-Type: application/json
+
+{
+  "ips_content": "崩溃日志内容",
+  "dsym_paths": ["/path/to/app.dSYM"]
+}
+
+响应：
+{
+  "success": true,
+  "crash_info": { ... },
+  "symbolicated_log": "符号化后的日志"
+}</code></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // 获取DOM元素
+    const form = document.querySelector('form');
+    const loadingSpinner = document.querySelector('.loading-spinner');
+    const submitButton = document.querySelector('button[type="submit"]');
+    const ipsFileInput = document.getElementById('ips_file');
+    const dsymFilesInput = document.getElementById('dsym_files');
+
+    // 文件选择后更新显示
+    ipsFileInput.addEventListener('change', function(e) {
+        updateUploadArea(e.target, 'ips');
+    });
+
+    dsymFilesInput.addEventListener('change', function(e) {
+        updateUploadArea(e.target, 'dsym');
+    });
+
+    // 更新上传区域显示
+    function updateUploadArea(input, type) {
+        const uploadArea = input.closest('.upload-area');
+        const uploadContent = uploadArea.querySelector('.upload-content');
+        
+        if (input.files.length > 0) {
+            if (type === 'ips') {
+                const fileName = input.files[0].name;
+                uploadContent.innerHTML = `
+                    <i class="fas fa-file-check fa-3x text-success mb-3"></i>
+                    <h5 class="text-success">✅ 已选择IPS文件</h5>
+                    <p class="text-muted mb-0">${fileName}</p>
+                `;
+            } else if (type === 'dsym') {
+                const fileCount = input.files.length;
+                const fileNames = Array.from(input.files).map(f => f.name).slice(0, 3).join(', ');
+                const moreText = input.files.length > 3 ? ` 等${input.files.length}个文件` : '';
+                uploadContent.innerHTML = `
+                    <i class="fas fa-archive fa-3x text-success mb-3"></i>
+                    <h5 class="text-success">✅ 已选择 ${fileCount} 个dSYM文件</h5>
+                    <p class="text-muted mb-0" style="word-break: break-all;">${fileNames}${moreText}</p>
+                `;
+            }
+            uploadArea.classList.add('file-selected');
+        }
+    }
+
+    // 拖拽功能
+    function setupDragAndDrop(uploadArea, fileInput) {
+        uploadArea.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            uploadArea.classList.add('drag-over');
+        });
+
+        uploadArea.addEventListener('dragleave', function(e) {
+            e.preventDefault();
+            uploadArea.classList.remove('drag-over');
+        });
+
+        uploadArea.addEventListener('drop', function(e) {
+            e.preventDefault();
+            uploadArea.classList.remove('drag-over');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                fileInput.files = files;
+                fileInput.dispatchEvent(new Event('change'));
+            }
+        });
+    }
+
+    // 为两个上传区域设置拖拽功能
+    setupDragAndDrop(document.querySelector('#ips_file').closest('.upload-area'), ipsFileInput);
+    setupDragAndDrop(document.querySelector('#dsym_files').closest('.upload-area'), dsymFilesInput);
+
+    // 表单提交处理
+    form.addEventListener('submit', function(e) {
+        // 验证文件是否已选择
+        if (!ipsFileInput.files.length) {
+            e.preventDefault();
+            alert('请选择IPS文件！');
+            return false;
+        }
+
+        if (!dsymFilesInput.files.length) {
+            e.preventDefault();
+            alert('请选择dSYM文件！');
+            return false;
+        }
+
+        // 显示加载动画
+        showLoading();
+        
+        // 禁用提交按钮防止重复提交
+        submitButton.disabled = true;
+        submitButton.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>分析中...';
+        
+        console.log('表单提交中...', {
+            ipsFile: ipsFileInput.files[0].name,
+            dsymFiles: Array.from(dsymFilesInput.files).map(f => f.name)
+        });
+    });
+
+    // 显示加载动画
+    function showLoading() {
+        loadingSpinner.style.display = 'block';
+        form.style.opacity = '0.6';
+        form.style.pointerEvents = 'none';
+    }
+
+    // 隐藏加载动画
+    function hideLoading() {
+        loadingSpinner.style.display = 'none';
+        form.style.opacity = '1';
+        form.style.pointerEvents = 'auto';
+        submitButton.disabled = false;
+        submitButton.innerHTML = '<i class="fas fa-play me-2"></i>开始分析崩溃日志';
+    }
+
+    // 页面加载完成后隐藏加载动画
+    window.addEventListener('load', function() {
+        hideLoading();
+    });
+
+    // 如果页面有错误消息，隐藏加载动画
+    if (document.querySelector('.alert')) {
+        hideLoading();
+    }
+
+    // 文件大小验证
+    function validateFileSize(file, maxSizeMB = 100) {
+        const maxSize = maxSizeMB * 1024 * 1024; // 转换为字节
+        if (file.size > maxSize) {
+            alert(`文件 "${file.name}" 太大，请确保文件小于 ${maxSizeMB}MB`);
+            return false;
+        }
+        return true;
+    }
+
+    // 文件类型验证
+    function validateFileType(file, allowedTypes) {
+        const fileName = file.name.toLowerCase();
+        const isValid = allowedTypes.some(type => fileName.endsWith(type));
+        if (!isValid) {
+            alert(`文件 "${file.name}" 格式不支持，请选择正确的文件类型`);
+            return false;
+        }
+        return true;
+    }
+
+    // 增强文件验证
+    ipsFileInput.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            if (!validateFileType(file, ['.ips', '.crash'])) {
+                e.target.value = '';
+                return;
+            }
+            if (!validateFileSize(file)) {
+                e.target.value = '';
+                return;
+            }
+        }
+    });
+
+    dsymFilesInput.addEventListener('change', function(e) {
+        const files = Array.from(e.target.files);
+        for (let file of files) {
+            if (!validateFileType(file, ['.dsym', '.zip'])) {
+                e.target.value = '';
+                return;
+            }
+            if (!validateFileSize(file)) {
+                e.target.value = '';
+                return;
+            }
+        }
+    });
+
+    console.log('页面JavaScript初始化完成');
+</script>
+{% endblock %} 
