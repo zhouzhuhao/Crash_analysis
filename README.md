@@ -1,6 +1,9 @@
 # iOS崩溃日志符号化工具
 
 基于Python和Xcode symbolicatecrash工具构建的iOS崩溃日志可视化分析工具，支持Web界面和命令行两种使用方式。
+大概长这样：
+![image](https://github.com/user-attachments/assets/16a02e31-97e8-4203-8818-c3d974ca5659)
+
 
 ## 功能特性
 
